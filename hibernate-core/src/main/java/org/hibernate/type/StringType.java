@@ -22,19 +22,25 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.type;
+import java.util.Comparator;
+
 import org.hibernate.dialect.Dialect;
+import org.hibernate.engine.spi.SessionImplementor;
+import org.hibernate.internal.util.compare.ComparableComparator;
 import org.hibernate.type.descriptor.java.StringTypeDescriptor;
 import org.hibernate.type.descriptor.sql.VarcharTypeDescriptor;
 
 /**
- * A type that maps between {@link java.sql.Types#VARCHAR VARCHAR} and {@link String}
+ * A type that maps between {@link java.sql.Types#VARCHAR VARCHAR} and {@link String}. Note that the implementation
+ * of the {@link VersionType} contract only supports values which are generated in the database.
  *
  * @author Gavin King
  * @author Steve Ebersole
  */
 public class StringType
 		extends AbstractSingleColumnStandardBasicType<String>
-		implements DiscriminatorType<String> {
+		implements DiscriminatorType<String>,
+		VersionType<String>{
 
 	public static final StringType INSTANCE = new StringType();
 
@@ -42,6 +48,7 @@ public class StringType
 		super( VarcharTypeDescriptor.INSTANCE, StringTypeDescriptor.INSTANCE );
 	}
 
+	@Override
 	public String getName() {
 		return "string";
 	}
@@ -51,15 +58,34 @@ public class StringType
 		return true;
 	}
 
+	@Override
 	public String objectToSQLString(String value, Dialect dialect) throws Exception {
 		return '\'' + value + '\'';
 	}
 
+	@Override
 	public String stringToObject(String xml) throws Exception {
 		return xml;
 	}
 
+	@Override
 	public String toString(String value) {
 		return value;
+	}
+
+	@Override
+	public String seed(SessionImplementor session) {
+		return null;
+	}
+
+	@Override
+	public String next(String current, SessionImplementor session) {
+		return current;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public Comparator<String> getComparator() {
+		return ComparableComparator.INSTANCE;
 	}
 }
