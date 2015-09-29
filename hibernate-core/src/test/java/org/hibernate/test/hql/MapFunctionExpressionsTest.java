@@ -7,21 +7,15 @@
 package org.hibernate.test.hql;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import javax.persistence.Column;
-import javax.persistence.ElementCollection;
-import javax.persistence.Embeddable;
+
 import javax.persistence.Entity;
-import javax.persistence.EnumType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.MapKeyColumn;
-import javax.persistence.MapKeyEnumerated;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
 import org.hibernate.Session;
-
 import org.hibernate.testing.junit4.BaseNonConfigCoreFunctionalTestCase;
 import org.junit.Test;
 
@@ -53,9 +47,31 @@ public class MapFunctionExpressionsTest extends BaseNonConfigCoreFunctionalTestC
 		//		path or alias.
 
 		Session s = openSession();
+
+		AddressType home = new AddressType();
+		home.id = 1;
+		home.name = "HOME";
+		s.persist( home );
+
+		Address homeAddress = new Address();
+		homeAddress.id = 1;
+		homeAddress.city = "Hamburg";
+		homeAddress.street = "Main Street 1";
+		s.persist( homeAddress );
+
+		Contact contact = new Contact();
+		contact.id = 1;
+		contact.name = "My Contact";
+		contact.addresses.put( home, homeAddress );
+		s.persist( contact );
+
 		s.getTransaction().begin();
 		// JPA form
-		s.createQuery( "select key(a) from Contact c join c.addresses a" ).list();
+		List<AddressType> addressTypes = s.createQuery( "select key(a) from Contact c join c.addresses a" ).list();
+
+		// Fails with a ClassCastException: Address is returned instead of AddressType
+		AddressType addressType = addressTypes.iterator().next();
+
 		// Hibernate additional form
 		s.createQuery( "select key(c.addresses) from Contact c" ).list();
 		s.getTransaction().commit();
@@ -74,13 +90,14 @@ public class MapFunctionExpressionsTest extends BaseNonConfigCoreFunctionalTestC
 
 	@Override
 	protected Class[] getAnnotatedClasses() {
-		return new Class[] { Address.class, Contact.class };
+		return new Class[] { Address.class, AddressType.class, Contact.class };
 	}
 
-	public static enum AddressType {
-		HOME,
-		WORK,
-		BUSINESS
+	@Entity
+	public static class AddressType {
+		@Id
+		public Integer id;
+		String name;
 	}
 
 	@Entity(name = "Address")
@@ -99,11 +116,8 @@ public class MapFunctionExpressionsTest extends BaseNonConfigCoreFunctionalTestC
 		@Id
 		public Integer id;
 		String name;
+
 		@OneToMany
-		@JoinColumn
-//		@ElementCollection
-		@MapKeyEnumerated(EnumType.STRING)
-		@MapKeyColumn(name = "addr_type")
 		Map<AddressType, Address> addresses = new HashMap<AddressType, Address>();
 	}
 }
