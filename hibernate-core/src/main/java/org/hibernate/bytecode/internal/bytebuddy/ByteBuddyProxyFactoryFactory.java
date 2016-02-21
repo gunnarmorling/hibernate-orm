@@ -10,6 +10,7 @@ import org.hibernate.bytecode.spi.BasicProxyFactory;
 import org.hibernate.bytecode.spi.ProxyFactoryFactory;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.proxy.ProxyFactory;
+import org.hibernate.proxy.pojo.bytebuddy.ByteBuddyBasicProxyFactory;
 import org.hibernate.proxy.pojo.bytebuddy.ByteBuddyProxyFactory;
 
 /**
@@ -26,6 +27,6 @@ public class ByteBuddyProxyFactoryFactory implements ProxyFactoryFactory {
 
 	@Override
 	public BasicProxyFactory buildBasicProxyFactory(Class superClass, Class[] interfaces) {
-		throw new UnsupportedOperationException();
+		return new ByteBuddyBasicProxyFactory( superClass != null ? superClass : interfaces[0] );
 	}
 }
