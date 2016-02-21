@@ -15,12 +15,12 @@ import java.util.Properties;
 
 import org.hibernate.HibernateException;
 import org.hibernate.Version;
+import org.hibernate.bytecode.internal.bytebuddy.ByteBuddyByteCodeProvider;
 import org.hibernate.bytecode.spi.BytecodeProvider;
 import org.hibernate.engine.jdbc.connections.internal.ConnectionProviderInitiator;
 import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.internal.util.ConfigHelper;
 import org.hibernate.internal.util.config.ConfigurationHelper;
-
 import org.jboss.logging.Logger;
 
 
@@ -313,7 +313,8 @@ public final class Environment implements AvailableSettings {
 	}
 
 	public static BytecodeProvider buildBytecodeProvider(Properties properties) {
-		String provider = ConfigurationHelper.getString( BYTECODE_PROVIDER, properties, "javassist" );
+		// TODO: Quick hack to use ByteBuddy as default proxy generator
+		String provider = ConfigurationHelper.getString( BYTECODE_PROVIDER, properties, "bytebuddy" );
 		LOG.bytecodeProvider( provider );
 		return buildBytecodeProvider( provider );
 	}
@@ -321,6 +322,9 @@ public final class Environment implements AvailableSettings {
 	private static BytecodeProvider buildBytecodeProvider(String providerName) {
 		if ( "javassist".equals( providerName ) ) {
 			return new org.hibernate.bytecode.internal.javassist.BytecodeProviderImpl();
+		}
+		else if ( "bytebuddy".equals( providerName ) ) {
+			return new ByteBuddyByteCodeProvider();
 		}
 
 		LOG.unknownBytecodeProvider( providerName );

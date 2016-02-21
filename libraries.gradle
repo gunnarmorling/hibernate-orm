@@ -38,6 +38,9 @@ ext {
             // Javassist
             javassist:      'org.javassist:javassist:3.20.0-GA',
 
+            // ByteBuddy
+            bytebuddy:      'net.bytebuddy:byte-buddy:1.2.2',
+
             // javax
             jpa:            'org.hibernate.javax.persistence:hibernate-jpa-2.1-api:1.0.0.Final',
             // There is a bug in the OSGi information in the JBoss one.  See https://issues.jboss.org/browse/JBEE-160
