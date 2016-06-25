@@ -1,0 +1,93 @@
+apply plugin: 'base'
+apply plugin: 'maven'
+
+version = rootProject.hibernateTargetVersion
+
+ext {
+    slot = '5.1'
+    wildflyVersion = '10.0.0.Final'
+}
+
+configurations {
+    wildfly
+}
+
+dependencies {
+    wildfly "org.wildfly:jipijapa-hibernate5:${wildflyVersion}"
+}
+
+task copyModuleXmls(type: Copy) {
+    into( buildDir.getName() + '/hibernate-modules' )
+    expand( slot: slot, version: version, wildflyVersion: wildflyVersion )
+
+    into( 'org/hibernate/' + slot ) {
+        from 'src/main/modules/org/hibernate/core'
+    }
+
+    into( 'org/hibernate/infinispan/' + slot ) {
+        from 'src/main/modules/org/hibernate/infinispan'
+    }
+
+    into( 'org/hibernate/jipijapa-hibernate5/' + slot ) {
+        from 'src/main/modules/org/hibernate/jipijapa-hibernate5'
+    }
+}
+
+task copyJars(dependsOn: copyModuleXmls, type: Copy) {
+    into( buildDir.getName() + '/hibernate-modules' )
+
+    into( 'org/hibernate/' + slot ) {
+        from parent.project( 'hibernate-core' ).configurations.archives.allArtifacts.files
+        from parent.project( 'hibernate-envers' ).configurations.archives.allArtifacts.files
+        from parent.project( 'hibernate-entitymanager' ).configurations.archives.allArtifacts.files
+        from parent.project( 'hibernate-java8' ).configurations.archives.allArtifacts.files
+    }
+
+    into( 'org/hibernate/infinispan/' + slot ) {
+        from parent.project( 'hibernate-infinispan' ).configurations.archives.allArtifacts.files.filter{ file -> !file.name.endsWith('-sources.jar') && !file.name.endsWith('-tests.jar') }
+    }
+
+    into( 'org/hibernate/jipijapa-hibernate5/' + slot ) {
+        from configurations.wildfly.copy().setTransitive(false) 
+    }
+}
+
+task createModulesZip(dependsOn: copyJars, type: Zip) {
+    classifier = 'wildfly10-dist'
+    from buildDir.getName() + '/hibernate-modules'
+}
+
+publishing {
+    publications {
+        mavenZip( MavenPublication ) {
+            artifact createModulesZip
+        }
+    }
+}
+
+// Exclude JAR creation/publication inherited from parent
+afterEvaluate {
+    tasks.withType(PublishToMavenLocal) { task ->
+        if (task.publication.name.equals( 'mavenJava') ) {
+            task.enabled = false
+            task.group = null
+        }
+    }
+
+    tasks.withType(PublishToMavenRepository) { task ->
+        if (task.publication.name.equals( 'mavenJava') ) {
+            task.enabled = false
+            task.group = null
+        }
+    }
+
+    tasks.withType(Jar) { task ->
+        task.enabled = false
+        task.group = null
+    }
+}
+
+mavenPom {
+    name = 'Hibernate ORM modules for WildFly 10'
+    description = 'Hibernate ORM modules for WildFly 10'
+}

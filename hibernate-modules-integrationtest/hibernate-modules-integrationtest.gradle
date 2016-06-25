@@ -1,0 +1,57 @@
+/*
+ * Hibernate, Relational Persistence for Idiomatic Java
+ *
+ * License: GNU Lesser General Public License (LGPL), version 2.1 or later.
+ * See the lgpl.txt file in the root directory or <http://www.gnu.org/licenses/lgpl-2.1.html>.
+ */
+configurations {
+    wildfly
+    modules
+}
+
+ext {
+    wildflyVersion = "10.0.0.Final"
+}
+
+ext.libraryVersions = [
+        javaee                  : '7.0',
+        // wildfly                 : '1.1.0.Alpha1',
+        wildfly                 : '2.0.0.Final',
+        junit                   : '4.12',
+        arquillian              : '1.1.10.Final',
+        shrinkWrapResolverGradle: '2.2.0'
+]
+
+dependencies {
+    wildfly "org.wildfly:wildfly-dist:${wildflyVersion}@zip"
+    modules "org.hibernate:hibernate-modules:${rootProject.hibernateTargetVersion}:wildfly10-dist@zip"
+
+    testCompile project( ":hibernate-core" )
+    provided "javax:javaee-api:${libraryVersions.javaee}"
+
+    testCompile "junit:junit:${libraryVersions.junit}"
+    testCompile "org.jboss.arquillian.junit:arquillian-junit-container:${libraryVersions.arquillian}"
+    testCompile "org.jboss.arquillian.protocol:arquillian-protocol-servlet:${libraryVersions.arquillian}"
+    testCompile "org.wildfly.arquillian:wildfly-arquillian-container-managed:${libraryVersions.wildfly}"
+    testCompile group: 'org.jboss.shrinkwrap.descriptors', name: 'shrinkwrap-descriptors-api-javaee', version: '2.0.0-alpha-9'
+    testCompile group: 'org.jboss.shrinkwrap.descriptors', name: 'shrinkwrap-descriptors-impl-javaee', version: '2.0.0-alpha-9'
+    
+    // testCompile "org.jboss.shrinkwrap.resolver:shrinkwrap-resolver-gradle-depchain:${libraryVersions.shrinkWrapResolverGradle}"
+}
+
+task extractWildFly(type: Copy) {
+    from { // use of closure defers evaluation until execution time
+        configurations.wildfly.collect { zipTree(it) }
+    }
+    into "$buildDir/"
+}
+
+task extractModules(dependsOn: extractWildFly, type: Copy) {
+    duplicatesStrategy DuplicatesStrategy.EXCLUDE
+    from { // use of closure defers evaluation until execution time
+        configurations.modules.collect { zipTree(it) }
+    }
+    into "$buildDir/wildfly-10.0.0.Final/modules"
+}
+
+test.dependsOn extractModules
