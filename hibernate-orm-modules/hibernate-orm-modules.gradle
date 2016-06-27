@@ -1,0 +1,117 @@
+apply plugin: 'base'
+apply plugin: 'maven'
+
+version = rootProject.hibernateTargetVersion
+
+ext {
+    // Exact ORM version, e.g. "5.1.1.Final"
+    slot = version
+
+    // Just the minor ORM version, e.g. "5.1"; Is used as an alias for the exact version
+    minorSlot = slot.substring( 0, slot.indexOf( ".", slot.indexOf( "." ) + 1) )
+
+    majorWildflyVersion = wildflyVersion.substring( 0, wildflyVersion.indexOf( "." ) )
+}
+
+configurations {
+    wildfly
+}
+
+dependencies {
+    wildfly "org.wildfly:jipijapa-hibernate5:${wildflyVersion}"
+}
+
+// Copies all the module.xml descriptors into the output directory
+task copyModuleXmls(type: Copy) {
+    into( buildDir.getName() + '/hibernate-modules' )
+    expand( slot: slot, minorSlot: minorSlot, version: version, wildflyVersion: wildflyVersion )
+
+    // Actual module.xml files
+    into( 'org/hibernate/' + slot ) {
+        from 'src/main/modules/org/hibernate/core'
+    }
+
+    into( 'org/hibernate/infinispan/' + slot ) {
+        from 'src/main/modules/org/hibernate/infinispan'
+    }
+
+    into( 'org/hibernate/jipijapa-hibernate5/' + slot ) {
+        from 'src/main/modules/org/hibernate/jipijapa-hibernate5'
+    }
+
+    // Aliases
+    into( 'org/hibernate/' + minorSlot ) {
+        from 'src/main/aliases/org/hibernate/core'
+    }
+
+    into( 'org/hibernate/infinispan/' + minorSlot ) {
+        from 'src/main/aliases/org/hibernate/infinispan'
+    }
+
+    into( 'org/hibernate/jipijapa-hibernate5/' + minorSlot ) {
+        from 'src/main/aliases/org/hibernate/jipijapa-hibernate5'
+    }
+}
+
+// Copies all the ORM JARs and the JipiJapa JAR into the output directory
+task copyJars(dependsOn: copyModuleXmls, type: Copy) {
+    into( buildDir.getName() + '/hibernate-modules' )
+
+    into( 'org/hibernate/' + slot ) {
+        from parent.project( 'hibernate-core' ).configurations.archives.allArtifacts.files
+        from parent.project( 'hibernate-envers' ).configurations.archives.allArtifacts.files
+        from parent.project( 'hibernate-entitymanager' ).configurations.archives.allArtifacts.files
+        from parent.project( 'hibernate-java8' ).configurations.archives.allArtifacts.files
+    }
+
+    into( 'org/hibernate/infinispan/' + slot ) {
+        from parent.project( 'hibernate-infinispan' ).configurations.archives.allArtifacts.files.filter{ file -> !file.name.endsWith('-sources.jar') && !file.name.endsWith('-tests.jar') }
+    }
+
+    into( 'org/hibernate/jipijapa-hibernate5/' + slot ) {
+        from configurations.wildfly.copy().setTransitive( false )
+    }
+}
+
+// Creates a ZIP from the output directory
+task createModulesZip(dependsOn: copyJars, type: Zip) {
+    classifier = "wildfly${majorWildflyVersion}-dist"
+    from buildDir.getName() + '/hibernate-modules'
+}
+
+build.dependsOn createModulesZip
+
+publishing {
+    publications {
+        mavenZip( MavenPublication ) {
+            artifact createModulesZip
+        }
+    }
+}
+
+// Exclude JAR creation/publication inherited from parent
+afterEvaluate {
+    tasks.withType(PublishToMavenLocal) { task ->
+        if (task.publication.name.equals( 'mavenJava') ) {
+            task.enabled = false
+            task.group = null
+        }
+    }
+
+    tasks.withType(PublishToMavenRepository) { task ->
+        if (task.publication.name.equals( 'mavenJava') ) {
+            task.enabled = false
+            task.group = null
+        }
+    }
+
+    tasks.withType(Jar) { task ->
+        task.enabled = false
+        task.group = null
+    }
+}
+
+mavenPom {
+    name = "Hibernate ORM modules for WildFly ${majorWildflyVersion}"
+    description = "Hibernate ORM modules for WildFly ${majorWildflyVersion}"
+}

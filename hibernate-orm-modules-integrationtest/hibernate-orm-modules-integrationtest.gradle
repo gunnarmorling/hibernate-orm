@@ -1,0 +1,78 @@
+/*
+ * Hibernate, Relational Persistence for Idiomatic Java
+ *
+ * License: GNU Lesser General Public License (LGPL), version 2.1 or later.
+ * See the lgpl.txt file in the root directory or <http://www.gnu.org/licenses/lgpl-2.1.html>.
+ */
+apply plugin: 'java'
+
+ext {
+    majorWildflyVersion = wildflyVersion.substring( 0, wildflyVersion.indexOf( "." ) )
+}
+
+configurations {
+    wildfly
+    modules
+}
+
+dependencies {
+    wildfly "org.wildfly:wildfly-dist:${wildflyVersion}@zip"
+
+    modules files( "${rootProject.rootDir}/hibernate-orm-modules/target/distributions/hibernate-orm-modules-${rootProject.hibernateTargetVersion}-wildfly${majorWildflyVersion}-dist.zip" )
+
+    testCompile project( ":hibernate-core" )
+    testCompile libraries.junit
+    testCompile libraries.arquillian_junit_container
+    testCompile libraries.arquillian_protocol_servlet
+    testCompile libraries.shrinkwrap_descriptors_api_javaee
+    testCompile libraries.shrinkwrap_descriptors_impl_javaee
+    testCompile libraries.wildfly_arquillian_container_managed
+}
+
+// Unzip Wildfly Dist
+task extractWildFly(type: Copy) {
+    from {
+        configurations.wildfly.collect { zipTree(it) }
+    }
+    into "$buildDir/"
+}
+
+// Unzip Hibernate ORM Modules ZIP into ${wildflyHome}/modules
+task extractModules(dependsOn: [extractWildFly, ":hibernate-orm-modules:createModulesZip"], type: Copy) {
+    duplicatesStrategy DuplicatesStrategy.EXCLUDE
+    from { // use of closure defers evaluation until execution time
+        configurations.modules.collect { zipTree(it) }
+    }
+    into "$buildDir/wildfly-${wildflyVersion}/modules"
+}
+
+task filterArquillianXml(type: Copy) {
+    into( buildDir.getName() + '/resources/test' )
+    expand( buildDir: buildDir.getName(), wildflyVersion: wildflyVersion )
+    from 'src/test/resources'
+}
+
+test.dependsOn extractModules
+test.dependsOn filterArquillianXml
+
+// Exclude JAR creation/publication inherited from parent
+afterEvaluate {
+    tasks.withType(PublishToMavenLocal) { task ->
+        if (task.publication.name.equals( 'mavenJava') ) {
+            task.enabled = false
+            task.group = null
+        }
+    }
+
+    tasks.withType(PublishToMavenRepository) { task ->
+        if (task.publication.name.equals( 'mavenJava') ) {
+            task.enabled = false
+            task.group = null
+        }
+    }
+
+    tasks.withType(Jar) { task ->
+        task.enabled = false
+        task.group = null
+    }
+}
