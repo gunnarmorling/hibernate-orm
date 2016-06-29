@@ -163,7 +163,9 @@ mavenPom {
 publishing {
     publications {
         mavenZip( MavenPublication ) {
-            artifact createModulesZip
+            artifact(createModulesZip) {
+                classifier = "wildfly-${majorWildflyVersion}-dist"
+            }
         }
     }
 }
