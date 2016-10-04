@@ -151,7 +151,7 @@ import org.jboss.logging.Logger;
  * @author Gavin King
  */
 public final class Environment implements AvailableSettings {
-	private static final CoreMessageLogger LOG = Logger.getMessageLogger(CoreMessageLogger.class, Environment.class.getName());
+	private static final CoreMessageLogger LOG = Logger.getMessageLogger( CoreMessageLogger.class, Environment.class.getName() );
 
 	private static final BytecodeProvider BYTECODE_PROVIDER_INSTANCE;
 	private static final boolean ENABLE_BINARY_STREAMS;
@@ -314,17 +314,19 @@ public final class Environment implements AvailableSettings {
 	}
 
 	public static BytecodeProvider buildBytecodeProvider(Properties properties) {
-		String provider = ConfigurationHelper.getString( BYTECODE_PROVIDER, properties, "javassist" );
+		String provider = ConfigurationHelper.getString( BYTECODE_PROVIDER, properties, "bytebuddy" );
 		LOG.bytecodeProvider( provider );
 		return buildBytecodeProvider( provider );
 	}
 
 	private static BytecodeProvider buildBytecodeProvider(String providerName) {
-		if ( "javassist".equals( providerName ) ) {
+		if ( "bytebuddy".equals( providerName ) ) {
+			return new org.hibernate.bytecode.internal.bytebuddy.BytecodeProviderImpl();
+		} else if ( "javassist".equals( providerName ) ) {
 			return new org.hibernate.bytecode.internal.javassist.BytecodeProviderImpl();
 		}
 
 		LOG.unknownBytecodeProvider( providerName );
-		return new org.hibernate.bytecode.internal.javassist.BytecodeProviderImpl();
+		return new org.hibernate.bytecode.internal.bytebuddy.BytecodeProviderImpl();
 	}
 }
